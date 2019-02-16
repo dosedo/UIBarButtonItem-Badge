@@ -20,6 +20,7 @@ NSString const *UIButton_badgeOriginYKey = @"UIButton_badgeOriginYKey";
 NSString const *UIButton_shouldHideBadgeAtZeroKey = @"UIButton_shouldHideBadgeAtZeroKey";
 NSString const *UIButton_shouldAnimateBadgeKey = @"UIButton_shouldAnimateBadgeKey";
 NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
+NSString const *UIButton_badgeIsInitedKey = @"UIButton_badgeIsInitedKey";
 
 @implementation UIButton (Badge)
 
@@ -35,7 +36,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
     self.badgeFont      = [UIFont systemFontOfSize:12.0];
     self.badgePadding   = 6;
     self.badgeMinSize   = 8;
-    self.badgeOriginX   = self.frame.size.width - self.badge.frame.size.width/2;
+    self.badgeOriginX   = -1;
     self.badgeOriginY   = -4;
     self.shouldHideBadgeAtZero = YES;
     self.shouldAnimateBadge = YES;
@@ -69,7 +70,6 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 
 - (void)updateBadgeFrame
 {
-
     CGSize expectedLabelSize = [self badgeExpectedSize];
     
     // Make sure that for small value, the badge will be big enough
@@ -82,6 +82,9 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
     
     // Using const we make sure the badge doesn't get too smal
     minWidth = (minWidth < minHeight) ? minHeight : expectedLabelSize.width;
+    if( self.badgeOriginX == -1 ){
+        self.badgeOriginX = self.frame.size.width - self.badge.frame.size.width/2;
+    }
     self.badge.frame = CGRectMake(self.badgeOriginX, self.badgeOriginY, minWidth + padding, minHeight + padding);
     self.badge.layer.cornerRadius = (minHeight + padding) / 2;
     self.badge.layer.masksToBounds = YES;
@@ -102,12 +105,15 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
     
     // Set the new value
     self.badge.text = self.badgeValue;
-    
-    // Animate the size modification if needed
-    NSTimeInterval duration = (animated && self.shouldAnimateBadge) ? 0.2 : 0;
-    [UIView animateWithDuration:duration animations:^{
+    if( !animated ){
         [self updateBadgeFrame];
-    }];
+    }else{
+        // Animate the size modification if needed
+        NSTimeInterval duration = (self.shouldAnimateBadge) ? 0.2 : 0;
+        [UIView animateWithDuration:duration animations:^{
+            [self updateBadgeFrame];
+        }];
+    }
 }
 
 - (UILabel *)duplicateLabel:(UILabel *)labelToCopy
@@ -128,6 +134,14 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
         [self.badge removeFromSuperview];
         self.badge = nil;
     }];
+}
+
+//check badge is inited, if no init, init it.
+- (void)checkBadgeIsInited{
+    if( ![self isInitedBadge] ){
+        [self setIsInitedBadge:YES];
+        [self badgeInit];
+    }
 }
 
 #pragma mark - getters/setters
@@ -157,8 +171,9 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
         self.badge.backgroundColor      = self.badgeBGColor;
         self.badge.font                 = self.badgeFont;
         self.badge.textAlignment        = NSTextAlignmentCenter;
-        [self badgeInit];
+        [self checkBadgeIsInited];
         [self addSubview:self.badge];
+        
         [self updateBadgeValueAnimated:NO];
     } else {
         [self updateBadgeValueAnimated:YES];
@@ -171,6 +186,8 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void)setBadgeBGColor:(UIColor *)badgeBGColor
 {
+    [self checkBadgeIsInited];
+    
     objc_setAssociatedObject(self, &UIButton_badgeBGColorKey, badgeBGColor, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
         [self refreshBadge];
@@ -183,6 +200,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void)setBadgeTextColor:(UIColor *)badgeTextColor
 {
+    [self checkBadgeIsInited];
     objc_setAssociatedObject(self, &UIButton_badgeTextColorKey, badgeTextColor, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
         [self refreshBadge];
@@ -195,6 +213,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void)setBadgeFont:(UIFont *)badgeFont
 {
+    [self checkBadgeIsInited];
     objc_setAssociatedObject(self, &UIButton_badgeFontKey, badgeFont, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
         [self refreshBadge];
@@ -203,11 +222,13 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 
 // Padding value for the badge
 -(CGFloat) badgePadding {
+    
     NSNumber *number = objc_getAssociatedObject(self, &UIButton_badgePaddingKey);
     return number.floatValue;
 }
 -(void) setBadgePadding:(CGFloat)badgePadding
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithDouble:badgePadding];
     objc_setAssociatedObject(self, &UIButton_badgePaddingKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
@@ -222,6 +243,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void) setBadgeMinSize:(CGFloat)badgeMinSize
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithDouble:badgeMinSize];
     objc_setAssociatedObject(self, &UIButton_badgeMinSizeKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
@@ -236,6 +258,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void) setBadgeOriginX:(CGFloat)badgeOriginX
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithDouble:badgeOriginX];
     objc_setAssociatedObject(self, &UIButton_badgeOriginXKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
@@ -249,6 +272,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 -(void) setBadgeOriginY:(CGFloat)badgeOriginY
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithDouble:badgeOriginY];
     objc_setAssociatedObject(self, &UIButton_badgeOriginYKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     if (self.badge) {
@@ -263,6 +287,7 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 - (void)setShouldHideBadgeAtZero:(BOOL)shouldHideBadgeAtZero
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithBool:shouldHideBadgeAtZero];
     objc_setAssociatedObject(self, &UIButton_shouldHideBadgeAtZeroKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
@@ -274,9 +299,19 @@ NSString const *UIButton_badgeValueKey = @"UIButton_badgeValueKey";
 }
 - (void)setShouldAnimateBadge:(BOOL)shouldAnimateBadge
 {
+    [self checkBadgeIsInited];
     NSNumber *number = [NSNumber numberWithBool:shouldAnimateBadge];
     objc_setAssociatedObject(self, &UIButton_shouldAnimateBadgeKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
+//Badge is inited
+- (BOOL) isInitedBadge{
+    NSNumber *number = objc_getAssociatedObject(self, &UIButton_badgeIsInitedKey);
+    return number.boolValue;
+}
+- (void)setIsInitedBadge:(BOOL)isInited{
+    NSNumber *number = @(isInited);
+    objc_setAssociatedObject(self, &UIButton_badgeIsInitedKey, number, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
 
 @end
